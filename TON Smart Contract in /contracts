@@ -1,0 +1,74 @@
+import "@stdlib/deploy";
+
+contract AccessControl {
+    owner: Address;
+    documents: map<Slice, Cell>; // docID -> {sender: Address, recipient: Address, cid: String, expiry: Int, revoked: Bool}
+
+    init() {
+        self.owner = sender();
+    }
+
+    receive("addDocument") {
+        require(sender() == self.owner, "Only owner");
+        let docID: Slice = inMsgBody~loadSlice();
+        let recipient: Address = inMsgBody~loadAddress();
+        let cid: String = inMsgBody~loadStringRef();
+        let expiry: Int = inMsgBody~loadInt(64);
+
+        let metadata: Builder = beginCell()
+            .storeAddress(sender())
+            .storeAddress(recipient)
+            .storeStringRef(cid)
+            .storeInt(expiry, 64)
+            .storeBool(false) // revoked
+        .endCell();
+
+        self.documents.set(docID, metadata);
+        reply("Document added".asComment());
+    }
+
+    get fun getDocument(cid: Slice): Cell? {
+        return self.documents.get(cid);
+    }
+
+    receive("checkAccess") {
+        let docID: Slice = inMsgBody~loadSlice();
+        let requester: Address = sender();
+        let metadataOpt: Cell? = self.documents.get(docID);
+        require(metadataOpt != null, "No document");
+
+        let metadata: Slice = metadataOpt!!.beginParse();
+        let sender: Address = metadata~loadAddress();
+        let recipient: Address = metadata~loadAddress();
+        let cid: String = metadata~loadStringRef();
+        let expiry: Int = metadata~loadInt(64);
+        let revoked: Bool = metadata~loadBool();
+
+        require(!revoked && now() <= expiry && (requester == recipient || requester == sender), "Access denied");
+        reply(beginCell().storeStringRef(cid).endCell());
+    }
+
+    receive("revokeAccess") {
+        require(sender() == self.owner, "Only owner");
+        let docID: Slice = inMsgBody~loadSlice();
+        let metadataOpt: Cell? = self.documents.get(docID);
+        require(metadataOpt != null, "No document");
+
+        let metadata: Slice = metadataOpt!!.beginParse();
+        let sender: Address = metadata~loadAddress();
+        let recipient: Address = metadata~loadAddress();
+        let cid: String = metadata~loadStringRef();
+        let expiry: Int = metadata~loadInt(64);
+
+        let newMetadata: Builder = beginCell()
+            .storeAddress(sender)
+            .storeAddress(recipient)
+            .storeStringRef(cid)
+            .storeInt(expiry, 64)
+            .storeBool(true) // revoked
+        .endCell();
+
+        self.documents.set(docID, newMetadata);
+        reply("Access revoked".asComment());
+    }
+}
