@@ -1,0 +1,25 @@
+{
+  "name": "solcipher-ton",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest",
+    "deploy-contract": "tact --config tact.config.json"
+  },
+  "dependencies": {
+    "@tonconnect/ui-react": "^2.0.0",
+    "tonweb": "^0.0.66",
+    "crypto-js": "^4.2.0",
+    "web3-storage": "^3.5.0",
+    "@ton-org/ton-storage-client": "^0.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@tact-lang/tact": "^1.0.0",
+    "vite": "^5.0.0",
+    "vitest": "^0.34.0"
+  }
+}
