@@ -1,0 +1,64 @@
+import React, { useState } from 'react';
+import { useTonConnectUI } from '@tonconnect/ui-react';
+import TonWeb from 'tonweb';
+import CryptoJS from 'crypto-js';
+import { Web3Storage } from 'web3-storage';
+
+const Upload = () => {
+  const [tonConnectUI] = useTonConnectUI();
+  const [file, setFile] = useState(null);
+  const [recipient, setRecipient] = useState('');
+  const [expiry, setExpiry] = useState('');
+
+  const tonweb = new TonWeb(new TonWeb.HttpProvider(process.env.TON_RPC_ENDPOINT));
+  const contractAddress = new TonWeb.Address(process.env.TON_CONTRACT_ADDRESS);
+
+  const handleUpload = async () => {
+    if (!tonConnectUI.connected || !file) return;
+
+    // Read file
+    const reader = new FileReader();
+    reader.readAsArrayBuffer(file);
+    reader.onload = async () => {
+      const buffer = reader.result;
+
+      // Derive key from wallet signature (simplified; use signMessage)
+      const message = 'sign-for-key';
+      const signature = await tonConnectUI.sendTransaction({ /* mock sign */ }); // Adapt to sign
+      const key = CryptoJS.SHA256(signature).toString();
+
+      // Encrypt
+      const encrypted = CryptoJS.AES.encrypt(new Uint8Array(buffer), key, { mode: CryptoJS.mode.GCM });
+
+      // Upload to IPFS
+      const client = new Web3Storage({ token: process.env.WEB3_STORAGE_TOKEN });
+      const cid = await client.put([new File([encrypted.ciphertext], file.name)]);
+
+      // Call contract
+      const docID = TonWeb.utils.bytesToBase64(new TextEncoder().encode(file.name)); // Simple ID
+      const body = TonWeb.boc.Cell.oneFromBoc(
+        new TonWeb.boc.Builder()
+          .storeString('addDocument')
+          .storeBytes(docID)
+          .storeAddress(TonWeb.Address.parse(recipient))
+          .storeString(cid)
+          .storeUint(Math.floor(new Date(expiry).getTime() / 1000), 64)
+          .cell
+      );
+      await tonweb.provider.sendBoc(contractAddress, body); // Send message
+
+      alert('Uploaded!');
+    };
+  };
+
+  return (
+    <div>
+      <input type="file" onChange={(e) => setFile(e.target.files[0])} />
+      <input placeholder="Recipient TON Address" onChange={(e) => setRecipient(e.target.value)} />
+      <input type="date" onChange={(e) => setExpiry(e.target.value)} />
+      <button onClick={handleUpload}>Upload</button>
+    </div>
+  );
+};
+
+export default Upload;
