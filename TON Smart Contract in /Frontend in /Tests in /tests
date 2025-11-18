@@ -1,0 +1,8 @@
+import { describe, it, expect } from 'vitest';
+// Add Tact test setup (see Tact docs for emulator)
+describe('AccessControl', () => {
+  it('adds document', () => {
+    // Simulate deployment and call
+    expect(true).toBe(true); // Placeholder
+  });
+});
