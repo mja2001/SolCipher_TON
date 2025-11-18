@@ -1,0 +1,44 @@
+import "@stdlib/deploy";
+
+contract AccessControl {
+    // Storage: Map of document IDs to metadata
+    documents: map<slice, cell>; // Key: docID (slice), Value: cell with {sender: Address, recipient: Address, cid: String, expiry: Int}
+
+    init() {}
+
+    receive("addDocument") {
+        let docID: slice = inMsgBody~loadSlice();
+        let sender: Address = sender();
+        let recipient: Address = inMsgBody~loadAddress();
+        let cid: String = inMsgBody~loadString();
+        let expiry: Int = inMsgBody~loadInt(64);
+
+        let metadata: Builder = beginCell()
+            .storeAddress(sender)
+            .storeAddress(recipient)
+            .storeString(cid)
+            .storeInt(expiry, 64)
+        .endCell();
+
+        self.documents.set(docID, metadata);
+        send(SendParameters{to: msg.sender, value: 0, body: "Document added"});
+    }
+
+    receive("checkAccess") {
+        let docID: slice = inMsgBody~loadSlice();
+        let requester: Address = sender();
+        let metadata: cell = self.documents.get(docID) ?? throw("No doc");
+        let unpacked: (Address, Address, String, Int) = metadata.beginParse()
+            .loadAddress()
+            .loadAddress()
+            .loadString()
+            .loadInt(64);
+
+        if (requester != unpacked.1 || now() > unpacked.3) { throw("Access denied"); }
+        send(SendParameters{to: msg.sender, value: 0, body: unpacked.2}); // Return CID
+    }
+
+    receive("revokeAccess") {
+        // Similar logic to remove or update expiry
+    }
+}
