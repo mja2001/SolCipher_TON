@@ -1,0 +1,7 @@
+import { useTonConnectUI } from '@tonconnect/ui-react';
+
+const [tonConnectUI] = useTonConnectUI();
+
+const connectWallet = async () => {
+  await tonConnectUI.connectWallet();
+};
