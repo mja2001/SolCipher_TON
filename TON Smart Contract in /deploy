@@ -1,0 +1,9 @@
+{
+  "projects": [
+    {
+      "name": "access_control",
+      "path": "./contracts/access_control.tact",
+      "output": "./contracts/build"
+    }
+  ]
+}
